@@ -12,11 +12,11 @@ from dl_experiments.model import MyBaseModel as BaseModel
 class BaseWrapper(object):
     def __init__(self, model_class: Union[MyCNN, MyGRU, MyCNNGRU],
                  model_config: Union[MyCNNConfig, MyGRUConfig, MyCNNGRUConfig],
-                 checkpoint: Mapping,
+                 checkpoint: dict,
                  device: str = "cpu"):
         self.model_class: BaseModel = model_class
         self.model_config: BaseModelConfig = model_config
-        self.checkpoint: Mapping = checkpoint
+        self.checkpoint: dict = checkpoint
         self.device: str = device
 
         self.model_args, _, _ = update_flat_dicts(checkpoint["best_trial_config"],

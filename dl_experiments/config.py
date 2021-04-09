@@ -1,7 +1,7 @@
 import os
 from typing import Any
-import torch
 from dl_experiments.model import MyCNN, MyGRU, MyCNNGRU
+from dl_experiments.losses import *
 
 
 class TuneConfig(object):
@@ -43,7 +43,8 @@ class TuneConfig(object):
 class GeneralConfig(object):
     batch_size: int = 32
     epochs: int = 200
-    result_dir: str = os.path.join(os.path.dirname(os.path.abspath(__file__)), "best_results")
+    result_dir: str = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results")
+    best_checkpoint_dir: str = os.path.join(os.path.dirname(os.path.abspath(__file__)), "best_checkpoints")
 
 
 class BaseModelConfig(object):
@@ -69,12 +70,14 @@ class MyCNNConfig(BaseModelConfig):
         "pool_kernel_size": 5,
     }
     optimizer_class = torch.optim.Adam
-    optimizer_args = {}
-    loss_class = torch.nn.MSELoss
+    optimizer_args = {
+        "lr": 0.01,
+        "weight_decay": 0.0001
+    }
+    loss_class = MSELoss
     loss_args = {}
     reporter = {
-        "parameter_columns": ["lr", "weight_decay", "input_dim"],
-        "metric_columns": ["validation_loss", "mae", "mse"]
+        "parameter_columns": ["lr", "weight_decay", "input_dim"]
     }
     search_space_config = {
         "lr": [0.1, 0.01, 0.001],
@@ -94,12 +97,14 @@ class MyGRUConfig(BaseModelConfig):
         "bidirectional": False
     }
     optimizer_class = torch.optim.Adam
-    optimizer_args = {}
-    loss_class = torch.nn.MSELoss
+    optimizer_args = {
+        "lr": 0.01,
+        "weight_decay": 0.0001
+    }
+    loss_class = MSELoss
     loss_args = {}
     reporter = {
-        "parameter_columns": ["lr", "weight_decay", "input_dim"],
-        "metric_columns": ["validation_loss", "mae", "mse"]
+        "parameter_columns": ["lr", "weight_decay", "input_dim"]
     }
     search_space_config = {
         "lr": [0.1, 0.01, 0.001],
@@ -122,12 +127,14 @@ class MyCNNGRUConfig(BaseModelConfig):
         "bidirectional": False
     }
     optimizer_class = torch.optim.Adam
-    optimizer_args = {}
-    loss_class = torch.nn.MSELoss
+    optimizer_args = {
+        "lr": 0.01,
+        "weight_decay": 0.0001
+    }
+    loss_class = MSELoss
     loss_args = {}
     reporter = {
-        "parameter_columns": ["lr", "weight_decay", "input_dim"],
-        "metric_columns": ["validation_loss", "mae", "mse"]
+        "parameter_columns": ["lr", "weight_decay", "input_dim"]
     }
     search_space_config = {
         "lr": [0.1, 0.01, 0.001],

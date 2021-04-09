@@ -10,12 +10,12 @@ from ray.tune.suggest import ConcurrencyLimiter
 from ray.tune.schedulers import ASHAScheduler
 from ray.tune import CLIReporter
 from ignite.engine import Events, Engine, create_supervised_trainer, create_supervised_evaluator
-from ignite.metrics import Loss, MeanAbsoluteError, MeanSquaredError
 from datetime import datetime
 
-from torch.utils.data import DataLoader, TensorDataset
+from torch.utils.data import DataLoader
 from dl_experiments.common import update_flat_dicts, create_tensor_dataset, create_dataset
-from dl_experiments.config import TuneConfig, BaseModelConfig, GeneralConfig
+from dl_experiments.config import TuneConfig, GeneralConfig
+from dl_experiments.metrics import *
 
 
 class HyperOptimizer(object):
@@ -70,7 +70,7 @@ class HyperOptimizer(object):
 
         scheduler = ASHAScheduler(max_t=GeneralConfig.epochs, **scheduler_config)
 
-        reporter = CLIReporter(**reporter_config)
+        reporter = CLIReporter(**reporter_config, metric_columns=["validation_loss", "mae", "mse", "rmse", "smape"])
 
         search_alg = OptunaSearch(**optuna_search_config)
         search_alg = ConcurrencyLimiter(
@@ -181,7 +181,9 @@ class HyperOptimizer(object):
         val_metrics: dict = {
             "validation_loss": Loss(loss),
             "mae": MeanAbsoluteError(),
-            "mse": MeanSquaredError()
+            "mse": MeanSquaredError(),
+            "rmse": RootMeanSquaredError(),
+            "smape": SymmetricMeanAbsolutePercentageError()
         }
         evaluator = create_supervised_evaluator(model,
                                                 device=self.device,
