@@ -1,4 +1,5 @@
 import os
+
 import torch
 import logging
 import time
@@ -59,8 +60,6 @@ class HyperOptimizer(object):
                              sampling_rate: str,
                              resources_per_trial: dict):
         """Perform hyperparameter optimization."""
-
-        config = hyperoptimizer_instance.config
 
         # Extract optionally provided configurations #####
         scheduler_config: dict = TuneConfig.scheduler

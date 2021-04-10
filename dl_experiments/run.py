@@ -8,13 +8,14 @@ import time
 import numpy as np
 import torch
 import pandas as pd
+pd.options.mode.chained_assignment = None  # just for now
+from sklearn.preprocessing import MinMaxScaler
 
 parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 os.environ["PYTHONPATH"] = parent_dir + ":" + os.environ.get("PYTHONPATH", "")
 sys.path.append(parent_dir)
 
 from dl_experiments.common import create_tensor_dataset, create_dataset, create_dirs, init_logging
-
 init_logging("INFO")
 from dl_experiments.optimization import HyperOptimizer
 from dl_experiments.wrapper import BaseWrapper
@@ -45,6 +46,9 @@ parser.add_argument("-ts", "--test-split", type=float, default=0.8,
 
 parser.add_argument("-vs", "--val-split", type=float, default=0.75,
                     help="Fraction of window used for validation.")
+
+parser.add_argument("-mmn", "--min-max-normalization", action="store_true",
+                    help="Specify if min-max normalization shall be applied.")
 
 parser.add_argument("-cr", "--cpu-resources", type=int, required=True,
                     help="Number of cores per trial.")
@@ -88,6 +92,15 @@ train_val = train[int(len(train) * args.val_split):]
 logging.info(f"Train shape: {train_train.shape}")
 logging.info(f"Validation shape: {train_val.shape}")
 logging.info(f"Test shape: {test.shape}")
+
+scaler = None
+if args.min_max_normalization:
+    logging.info(f"Fit scaler (using {len(train_train)} datapoints)...")
+    scaler = MinMaxScaler()
+    train_train = scaler.fit_transform(train_train)
+    train_val = scaler.transform(train_val)
+    test = scaler.transform(test)
+    logging.info("Scaler fitted.")
 
 resources_per_trial: dict = {
     "cpu": args.cpu_resources,  # how many cpu cores per trial?
@@ -135,17 +148,17 @@ try:
 except:
     results_df = test_df.t.to_frame()
 
-results_df[args.model] = 0    
+results_df[args.model] = 0
 horizon: int = 12 if args.dataset_sampling_rate == "1h" else (4 if args.dataset_sampling_rate == "15min" else 1)
 i: int = 0
 while i < len(pred_values):
-    try:
-        results_df[args.model].iloc[i:i+horizon] += pred_values[i]
-    except ValueError:
-        results_df[args.model].iloc[i:] += pred_values[i](len(pred_values)-i)
+    values = np.array(pred_values[i]).reshape(-1, 1)
+    if scaler is not None:
+        values = scaler.inverse_transform(values)
+    results_df[args.model].iloc[i:i + horizon] += values.flatten()
     i += 1
 
-great_divider = list(range(1, len(test_df)+1))
+great_divider = list(range(1, len(test_df) + 1))
 great_divider = list(map(lambda x: min(x, horizon), great_divider))
 great_divider = [min(abs(idx - len(great_divider)), x) for idx, x in enumerate(great_divider)]
 logging.debug(f"Great Divider: {great_divider}")
