@@ -194,4 +194,5 @@ for dataset_name in dataset_names:
         durations_df.loc[(durations_df.dataset == dataset_name) &
                          (durations_df.sampling_rate == dataset_sampling_rate),
                          f"{args.model}_device"] = args.device
-        durations_df.to_csv(os.path.join(GeneralConfig.result_dir, f"{normal_identifier}_durations.csv"), index=False)
+        durations_df = durations_df.sort_values(by=['dataset', 'sampling_rate'])
+        durations_df.to_csv(os.path.join(GeneralConfig.result_dir, "durations.csv"), index=False)
