@@ -31,7 +31,8 @@ class SymmetricMeanAbsolutePercentageError(Metric):
         errors = torch.sum(torch.abs(y_true - y_pred) / (torch.abs(y_true) + torch.abs(y_pred)))
 
         self._sum_of_errors += errors.item()
-        self._num_examples += y.shape[0]
+        self._num_examples += torch.numel(y_pred)
+        #self._num_examples += y.shape[0]
 
     @sync_all_reduce("_sum_of_errors", "_num_examples")
     def compute(self) -> Union[float, torch.Tensor]:

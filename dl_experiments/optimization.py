@@ -147,6 +147,9 @@ class HyperOptimizer(object):
         model_args, optimizer_args, loss_args = update_flat_dicts(
             config, [self.model_args, self.optimizer_args, self.loss_args])
         ############################
+        
+        # also use end of training values, in order to predict first validation values
+        val_data = np.concatenate((train_data[-model_args["input_dim"]:], val_data), axis=0)
 
         model = self.model_class(**model_args).double()
         optimizer = self.optimizer_class(

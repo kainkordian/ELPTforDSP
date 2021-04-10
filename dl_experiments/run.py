@@ -161,7 +161,7 @@ while i < len(pred_values):
 great_divider = list(range(1, len(test_df) + 1))
 great_divider = list(map(lambda x: min(x, horizon), great_divider))
 great_divider = [min(abs(idx - len(great_divider)), x) for idx, x in enumerate(great_divider)]
-logging.debug(f"Great Divider: {great_divider}")
+logging.info(f"Great Divider: {great_divider}")
 results_df[args.model] /= great_divider
 results_df.to_csv(os.path.join(GeneralConfig.result_dir, f"{normal_identifier}_results.csv"))
 

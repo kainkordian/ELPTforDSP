@@ -26,10 +26,10 @@ class TuneConfig(object):
         "checkpoint_score_attr": "min-validation_loss",
         "keep_checkpoints_num": 3,
         "verbose": 1,
-        "num_samples": 50,
+        "num_samples": 30,
     }
     concurrency_limiter: dict = {
-        "max_concurrent": 4
+        "max_concurrent": 8
     }
 
     optuna_search: dict = {}
