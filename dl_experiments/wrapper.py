@@ -44,10 +44,12 @@ class BaseWrapper(object):
         with torch.no_grad():
             for features, targets in DataLoader(data, batch_size=GeneralConfig.batch_size, shuffle=False):
                 features = features.to(self.device).to(torch.double)
-                target_pred += [self.instance(features)]
+                target_pred += [self.instance.forward_eval_single(features)]
 
                 targets = targets.to(self.device).to(torch.double)
                 target_true += [targets]
+        if hasattr(self.instance, "h_previous"):
+            self.instance.h_previous = None
 
         if not (len(target_pred) and len(target_true)):
             return torch.tensor([], dtype=torch.double).to(self.device), \

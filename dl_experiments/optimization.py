@@ -116,13 +116,14 @@ class HyperOptimizer(object):
         # load best checkpoint of best trial
         best_checkpoint_dir = analysis.get_best_checkpoint(best_trial)
 
-        model_state_dict, optimizer_state_dict, trainer_state_dict = torch.load(
+        model_state_dict, optimizer_state_dict, trainer_state_dict, evaluator_state_dict = torch.load(
             os.path.join(best_checkpoint_dir, "checkpoint"))
 
         return {
             "model_state_dict": model_state_dict,
             "optimizer_state_dict": optimizer_state_dict,
             "trainer_state_dict": trainer_state_dict,
+            "evaluator_state_dict": evaluator_state_dict,
             "best_trial_config": best_trial.config,
             "best_trial_val_loss": best_trial_val_loss,
             "time_taken": time_taken
@@ -171,16 +172,7 @@ class HyperOptimizer(object):
                                             non_blocking=True
                                             )
         ######################
-
-        # restore if possible #####
-        if checkpoint_dir:
-            checkpoint = torch.load(os.path.join(checkpoint_dir, "checkpoint"))
-            model.load_state_dict(checkpoint["model_state_dict"])
-            optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
-            trainer.load_state_dict(checkpoint["trainer_state_dict"])
-        ###########################
-        model = model.to(self.device)
-
+        
         # create evaluator #####
         val_metrics: dict = {
             "validation_loss": Loss(loss),
@@ -193,6 +185,16 @@ class HyperOptimizer(object):
                                                 device=self.device,
                                                 metrics=val_metrics)
         ########################
+
+        # restore if possible #####
+        if checkpoint_dir:
+            checkpoint = torch.load(os.path.join(checkpoint_dir, "checkpoint"))
+            model.load_state_dict(checkpoint["model_state_dict"])
+            optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+            trainer.load_state_dict(checkpoint["trainer_state_dict"])
+            evaluator.load_state_dict(checkpoint["evaluator_state_dict"])
+        ###########################
+        model = model.to(self.device)
 
         # create data loaders #####
         train_loader = DataLoader(train_data,
@@ -218,7 +220,7 @@ class HyperOptimizer(object):
                 # save model, optimizer and trainer checkpoints
                 path = os.path.join(local_checkpoint_dir, "checkpoint")
                 torch.save((model.state_dict(), optimizer.state_dict(),
-                            trainer_instance.state_dict()), path)
+                            trainer_instance.state_dict(), evaluator.state_dict()), path)
 
             # report validation scores to ray-tune
             report_dict: dict = {

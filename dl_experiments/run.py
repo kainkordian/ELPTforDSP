@@ -79,9 +79,9 @@ test_df = copy.deepcopy(base_df.iloc[int(len(base_df) * args.test_split):])
 
 orig_values = base_df[args.dataset_target_column].values.reshape(-1, 1)
 # extract sub-arrays
+train = orig_values[:int(len(base_df) * args.test_split)]
 test = orig_values[int(len(base_df) * args.test_split):]
 
-train = orig_values[:int(len(base_df) * args.test_split)]
 train_train = train[:int(len(train) * args.val_split)]
 train_val = train[int(len(train) * args.val_split):]
 
@@ -109,9 +109,8 @@ torch.save(checkpoint, os.path.join(GeneralConfig.best_checkpoint_dir, f"{job_id
 
 # update specs with best config
 wrapper = BaseWrapper(my_class, my_config, checkpoint, device=args.device)
-
 # also use end of training values, in order to predict first test values
-test = np.concatenate((train[-wrapper.model_args["input_dim"]-1:], test), axis=0)
+test = np.concatenate((train[-wrapper.model_args["input_dim"]:], test), axis=0)
 logging.info(f"Corrected Test shape: {test.shape}")
 # create test dataset tensor
 test_data = create_tensor_dataset(*create_dataset(test,
@@ -136,19 +135,21 @@ try:
 except:
     results_df = test_df.t.to_frame()
 
+results_df[args.model] = 0    
 horizon: int = 12 if args.dataset_sampling_rate == "1h" else (4 if args.dataset_sampling_rate == "15min" else 1)
 i: int = 0
-while i < len(test_df):
+while i < len(pred_values):
     try:
         results_df[args.model].iloc[i:i+horizon] += pred_values[i]
     except ValueError:
-        results_df[args.model].iloc[i:] += pred_values[i](len(test_df)-i)
+        results_df[args.model].iloc[i:] += pred_values[i](len(pred_values)-i)
     i += 1
 
 great_divider = list(range(1, len(test_df)+1))
 great_divider = list(map(lambda x: min(x, horizon), great_divider))
+great_divider = [min(abs(idx - len(great_divider)), x) for idx, x in enumerate(great_divider)]
+logging.debug(f"Great Divider: {great_divider}")
 results_df[args.model] /= great_divider
-
 results_df.to_csv(os.path.join(GeneralConfig.result_dir, f"{normal_identifier}_results.csv"))
 
 # durations

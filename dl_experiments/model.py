@@ -48,6 +48,10 @@ class MyCNN(MyBaseModel):
 
         self.__reset_parameters__()
 
+    ### Just for compatibility ###
+    def forward_eval_single(self, x):
+        return self.forward(x)
+    
     def forward(self, x):
 
         x = x.unsqueeze(1)
@@ -154,7 +158,6 @@ class MyCNNGRU(MyBaseModel):
         self.__dict__.update(kwargs)
 
         self.h_conv1 = 32
-        # self.h_conv2 = 32
         self.h_rnn = 16
 
         # Used to memorize hidden state when doing online sequence predictions
@@ -177,7 +180,6 @@ class MyCNNGRU(MyBaseModel):
         c_in = x.view(batch_size * timesteps, C, L)
 
         c_out = F.relu(F.max_pool1d(self.conv1(c_in), 3))
-        # c_out = F.relu(F.max_pool1d(self.conv2(c_out), 2))
         c_out = c_out.view(-1, 96)
 
         r_in = c_out.view(batch_size, timesteps, -1)
@@ -196,7 +198,6 @@ class MyCNNGRU(MyBaseModel):
         c_in = x.view(batch_size * timesteps, C, L)
 
         c_out = F.relu(F.max_pool1d(self.conv1(c_in), 3))
-        # c_out = F.relu(F.max_pool1d(self.conv2(c_out), 2))
         c_out = c_out.view(-1, 96)
 
         r_in = c_out.view(batch_size, timesteps, -1)
