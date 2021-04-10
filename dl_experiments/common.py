@@ -9,7 +9,7 @@ from torch.utils.data import TensorDataset
 
 def create_dataset(dataset, seq_length=1, target_length=1, device="cuda:0"):
     dataX, dataY = [], []
-    for i in range(len(dataset) - seq_length - target_length):
+    for i in range(len(dataset) - seq_length - target_length + 1):
         dataX.append(
             torch.from_numpy(
                 copy.deepcopy(dataset[i:(i + seq_length), 0])).reshape(-1, seq_length)
