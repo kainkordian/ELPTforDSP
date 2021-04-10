@@ -10,4 +10,4 @@ Switch to environment:
   
 Start script, e.g.:
 
-    python run.py -dp ../data/avazu_15min.csv -dn avazu -dtc messages -m CNN -d cpu
+    python run.py -drd ../data -dn avazu -dsr 15min -dtc messages -m GRU -d cpu -cr 1 -gr 0
