@@ -7,7 +7,7 @@ from dl_experiments.losses import *
 class TuneConfig(object):
 
     scheduler: dict = {
-        "grace_period": 100,
+        "grace_period": 500,
         "reduction_factor": 2
     }
     tune_best_trial: dict = {
@@ -26,12 +26,7 @@ class TuneConfig(object):
         "checkpoint_score_attr": "min-validation_loss",
         "keep_checkpoints_num": 3,
         "verbose": 1,
-        "num_samples": 2,
-        # can also be omitted
-        "resources_per_trial": {
-            "cpu": 1,  # how many cpu cores per trial?
-            "gpu": 0  # needs to be "0" on cpu-only devices. You can also specify fractions
-        }
+        "num_samples": 50,
     }
     concurrency_limiter: dict = {
         "max_concurrent": 4
@@ -41,8 +36,8 @@ class TuneConfig(object):
 
 
 class GeneralConfig(object):
-    batch_size: int = 32
-    epochs: int = 200
+    batch_size: int = 64
+    epochs: int = 1000
     result_dir: str = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results")
     best_checkpoint_dir: str = os.path.join(os.path.dirname(os.path.abspath(__file__)), "best_checkpoints")
 
@@ -54,8 +49,6 @@ class BaseModelConfig(object):
     optimizer_args: dict
     loss_class: Any
     loss_args: dict
-    reporter: dict
-    search_space_config: dict
 
 
 class MyCNNConfig(BaseModelConfig):
@@ -74,16 +67,8 @@ class MyCNNConfig(BaseModelConfig):
         "lr": 0.01,
         "weight_decay": 0.0001
     }
-    loss_class = MSELoss
+    loss_class = SMAPELoss
     loss_args = {}
-    reporter = {
-        "parameter_columns": ["lr", "weight_decay", "input_dim"]
-    }
-    search_space_config = {
-        "lr": [0.1, 0.01, 0.001],
-        "weight_decay": [0.01, 0.001],
-        "input_dim": [50, 100]
-    }
 
 
 class MyGRUConfig(BaseModelConfig):
@@ -101,23 +86,15 @@ class MyGRUConfig(BaseModelConfig):
         "lr": 0.01,
         "weight_decay": 0.0001
     }
-    loss_class = MSELoss
+    loss_class = SMAPELoss
     loss_args = {}
-    reporter = {
-        "parameter_columns": ["lr", "weight_decay", "input_dim"]
-    }
-    search_space_config = {
-        "lr": [0.1, 0.01, 0.001],
-        "weight_decay": [0.01, 0.001],
-        "input_dim": [50, 100]
-    }
 
 
 class MyCNNGRUConfig(BaseModelConfig):
     model_class = MyCNNGRU
     model_args = {
         "input_dim": 100,
-        "hidden_dim": 0,
+        "hidden_dim": 10,
         "output_dim": 1,
         "dropout": 0.0,
         "num_layers": 0,
@@ -131,13 +108,5 @@ class MyCNNGRUConfig(BaseModelConfig):
         "lr": 0.01,
         "weight_decay": 0.0001
     }
-    loss_class = MSELoss
+    loss_class = SMAPELoss
     loss_args = {}
-    reporter = {
-        "parameter_columns": ["lr", "weight_decay", "input_dim"]
-    }
-    search_space_config = {
-        "lr": [0.1, 0.01, 0.001],
-        "weight_decay": [0.01, 0.001],
-        "input_dim": [50, 100]
-    }

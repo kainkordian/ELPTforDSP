@@ -4,7 +4,6 @@ import logging
 import os
 import sys
 import time
-from typing import Mapping
 
 import numpy as np
 import torch
@@ -31,7 +30,7 @@ parser.add_argument("-dn", "--dataset-name", type=str,
 parser.add_argument("-dsr", "--dataset-sampling-rate", type=str, choices=["5min", "15min", "1h"],
                     required=True, help="Sampling rate of the dataset.")
 parser.add_argument("-dtc", "--dataset-target-column", type=str,
-                    required=True, help="Dataset target column.")
+                    default="messages", help="Dataset target column.")
 parser.add_argument("-dd", "--dataset-delimiter", type=str,
                     default=",", help="Dataset delimiter.")
 
@@ -46,6 +45,12 @@ parser.add_argument("-ts", "--test-split", type=float, default=0.8,
 
 parser.add_argument("-vs", "--val-split", type=float, default=0.75,
                     help="Fraction of window used for validation.")
+
+parser.add_argument("-cr", "--cpu-resources", type=int, required=True,
+                    help="Number of cores per trial.")
+
+parser.add_argument("-gr", "--gpu-resources", type=float, required=True,
+                    help="Fraction of gpu to use per trial.")
 
 args = parser.parse_args()
 
@@ -84,9 +89,19 @@ logging.info(f"Train shape: {train_train.shape}")
 logging.info(f"Validation shape: {train_val.shape}")
 logging.info(f"Test shape: {test.shape}")
 
+resources_per_trial: dict = {
+    "cpu": args.cpu_resources,  # how many cpu cores per trial?
+    "gpu": args.gpu_resources  # needs to be "0" on cpu-only devices. You can also specify fractions
+}
+
 # perform optimization
 optimizer_instance: HyperOptimizer = HyperOptimizer(my_config, job_identifier, args.device)
-checkpoint: dict = optimizer_instance.perform_optimization(optimizer_instance, train_train, train_val)
+checkpoint: dict = optimizer_instance.perform_optimization(optimizer_instance,
+                                                           train_train,
+                                                           train_val,
+                                                           args.model,
+                                                           args.dataset_sampling_rate,
+                                                           resources_per_trial)
 
 # save checkpoint
 create_dirs(GeneralConfig.best_checkpoint_dir)
@@ -105,15 +120,15 @@ test_data = create_tensor_dataset(*create_dataset(test,
                                                   device=args.device))
 # predict / test
 start_time = time.time()
-pred_values, true_values = wrapper.predict(test_data)
+pred_values, _ = wrapper.predict(test_data)
 pred_values = pred_values.tolist()
-true_values = true_values.tolist()
 end_time = time.time()
-inference_duration = (end_time - start_time) / len(test)
+inference_duration = (end_time - start_time) / len(pred_values)
 
+test_df["t"] = test_df.messages
 test_df = test_df.drop(["messages"], axis=1)
-test_df["t"] = true_values
 
+# results
 create_dirs(GeneralConfig.result_dir)
 try:
     results_df = pd.read_csv(os.path.join(GeneralConfig.result_dir,
@@ -121,10 +136,23 @@ try:
 except:
     results_df = test_df.t.to_frame()
 
-results_df[args.model] = pred_values
+horizon: int = 12 if args.dataset_sampling_rate == "1h" else (4 if args.dataset_sampling_rate == "15min" else 1)
+i: int = 0
+while i < len(test_df):
+    try:
+        results_df[args.model].iloc[i:i+horizon] += pred_values[i]
+    except ValueError:
+        results_df[args.model].iloc[i:] += pred_values[i](len(test_df)-i)
+    i += 1
+
+great_divider = list(range(1, len(test_df)+1))
+great_divider = list(map(lambda x: min(x, horizon), great_divider))
+results_df[args.model] /= great_divider
+
 results_df.to_csv(os.path.join(GeneralConfig.result_dir, f"{normal_identifier}_results.csv"))
 
-
+# durations
+create_dirs(GeneralConfig.result_dir)
 try:
     durations_df = pd.read_csv(os.path.join(GeneralConfig.result_dir, f"{normal_identifier}_durations.csv"))
 except:

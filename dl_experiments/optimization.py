@@ -15,6 +15,7 @@ from datetime import datetime
 from torch.utils.data import DataLoader
 from dl_experiments.common import update_flat_dicts, create_tensor_dataset, create_dataset
 from dl_experiments.config import TuneConfig, GeneralConfig
+from dl_experiments.search_config import get_search_space_config
 from dl_experiments.metrics import *
 
 
@@ -53,30 +54,32 @@ class HyperOptimizer(object):
     @staticmethod
     def perform_optimization(hyperoptimizer_instance,
                              train_data: np.array,
-                             val_data: np.array):
+                             val_data: np.array,
+                             model_name: str,
+                             sampling_rate: str,
+                             resources_per_trial: dict):
         """Perform hyperparameter optimization."""
 
         config = hyperoptimizer_instance.config
 
         # Extract optionally provided configurations #####
         scheduler_config: dict = TuneConfig.scheduler
-        reporter_config: dict = config.reporter
         optuna_search_config: dict = TuneConfig.optuna_search
         concurrency_limiter_config: dict = TuneConfig.concurrency_limiter
         tune_run_config: dict = TuneConfig.tune_run
         stopping_criterion_config: dict = TuneConfig.stopping_criterion
         tune_best_trial_config: dict = TuneConfig.tune_best_trial
         ##################################################
+        search_space_config: dict = get_search_space_config(model_name, sampling_rate)
 
         scheduler = ASHAScheduler(max_t=GeneralConfig.epochs, **scheduler_config)
 
-        reporter = CLIReporter(**reporter_config, metric_columns=["validation_loss", "mae", "mse", "rmse", "smape"])
+        reporter = CLIReporter(parameter_columns=list(search_space_config.keys()),
+                               metric_columns=["validation_loss", "mae", "mse", "rmse", "smape"])
 
         search_alg = OptunaSearch(**optuna_search_config)
         search_alg = ConcurrencyLimiter(
             search_alg, **concurrency_limiter_config)
-
-        search_space_config = {k: (tune.choice(v)) for k, v in config.search_space_config.items()}
 
         tune_run_name = f"{hyperoptimizer_instance.job_identifier}_{datetime.now().strftime('%Y%m%d-%H%M%S')}"
 
@@ -92,6 +95,7 @@ class HyperOptimizer(object):
                             progress_reporter=reporter,
                             search_alg=search_alg,
                             config=search_space_config,
+                            resources_per_trial=resources_per_trial,
                             stop=partial(
                                 HyperOptimizer.stopping_criterion, **stopping_criterion_config),
                             **tune_run_config)
