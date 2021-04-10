@@ -71,7 +71,6 @@ elif args.model == "CNNGRU":
     my_class = MyCNNGRU
     my_config = MyCNNGRUConfig
 
-
 dataset_names = args.dataset_names
 dataset_sampling_rates = args.dataset_sampling_rates
 
@@ -79,7 +78,7 @@ for dataset_name in dataset_names:
     for dataset_sampling_rate in dataset_sampling_rates:
 
         job_identifier: str = f"{dataset_name}_{dataset_sampling_rate}_{args.model}_{args.device}"
-        normal_identifier: str = f"{dataset_name}_{dataset_sampling_rate}"
+        normal_identifier: str = f"{dataset_name}_{dataset_sampling_rate}_{args.device}"
 
         # read data
         path_to_file = os.path.join(args.data_root_dir, f"{dataset_name}_{dataset_sampling_rate}.csv")
@@ -178,21 +177,30 @@ for dataset_name in dataset_names:
         # durations
         create_dirs(GeneralConfig.result_dir)
         try:
-            durations_df = pd.read_csv(os.path.join(GeneralConfig.result_dir, f"{normal_identifier}_durations.csv"))
+            durations_df = pd.read_csv(os.path.join(GeneralConfig.result_dir, "durations.csv"))
         except:
             durations_df = pd.DataFrame.from_dict({
                 "dataset": [dataset_name],
-                "sampling_rate": [dataset_sampling_rate]
+                "sampling_rate": [dataset_sampling_rate],
+                "device": [args.device]
             })
+        
+        dict_keys = [f"{args.model}_pred", f"{args.model}_train"]
+        dict_values = [inference_duration, checkpoint["time_taken"]]
+        
+        if len(durations_df[(durations_df.dataset == dataset_name) & 
+                            (durations_df.sampling_rate == dataset_sampling_rate) & 
+                            (durations_df.device == args.device)]):
+            
+            durations_df.loc[(durations_df.dataset == dataset_name) &
+                             (durations_df.sampling_rate == dataset_sampling_rate) & 
+                             (durations_df.device == args.device),
+                             dict_keys] = dict_values
+        else:
+            new_row = {k:v for k,v in zip(["dataset", "sampling_rate", "device"] + dict_keys, 
+                                          [dataset_name, dataset_sampling_rate, args.device] + dict_values)}
+            #append row to the dataframe
+            durations_df = durations_df.append(new_row, ignore_index=True)
 
-        durations_df.loc[(durations_df.dataset == dataset_name) &
-                         (durations_df.sampling_rate == dataset_sampling_rate),
-                         f"{args.model}_pred"] = inference_duration
-        durations_df.loc[(durations_df.dataset == dataset_name) &
-                         (durations_df.sampling_rate == dataset_sampling_rate),
-                         f"{args.model}_train"] = checkpoint["time_taken"]
-        durations_df.loc[(durations_df.dataset == dataset_name) &
-                         (durations_df.sampling_rate == dataset_sampling_rate),
-                         f"{args.model}_device"] = args.device
-        durations_df = durations_df.sort_values(by=['dataset', 'sampling_rate'])
+        durations_df = durations_df.sort_values(by=['dataset', 'sampling_rate', 'device'])
         durations_df.to_csv(os.path.join(GeneralConfig.result_dir, "durations.csv"), index=False)
