@@ -10,4 +10,4 @@ Switch to environment:
   
 Start script, e.g.:
 
-    python run.py -drd ../data -dn avazu -dsr 15min -dtc messages -m GRU -d cpu -cr 1 -gr 0
+    python slim_run.py -drd ../data -dn alibaba avazu google horton IoT retailrocket taxi wiki_de wiki_en -dsr 5min 15min 1h -m GRU -d cuda:0 -cr 1 -gr 0.125 -mmn

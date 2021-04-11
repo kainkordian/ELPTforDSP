@@ -54,13 +54,27 @@ class BaseModelConfig(object):
 class MyCNNConfig(BaseModelConfig):
     model_class = MyCNN
     model_args = {
-        "input_dim": 100,
-        "hidden_dim": 10,
-        "output_dim": 1,
-        "dropout": 0.0,
-        "num_conv_kernels": 16,
-        "conv_kernel_size": 9,
-        "pool_kernel_size": 5,
+        "input_dim": 12,
+        "output_dim": 12,
+        "num_layers": 4,
+
+        "dropout_1": 0.5,
+        "dropout_2": 0.5,
+        "dropout_3": 0.5,
+        "dropout_4": 0.5,
+
+        "num_conv_kernels_1": 64,
+        "num_conv_kernels_2": 64,
+        "num_conv_kernels_3": 128,
+        "num_conv_kernels_4": 128,
+
+        "conv_kernel_size_1": 9,
+        "conv_kernel_size_2": 7,
+        "conv_kernel_size_3": 5,
+        "conv_kernel_size_4": 3,
+
+        "pool_kernel_size": 3,
+        "pool_function": "max",
     }
     optimizer_class = torch.optim.Adam
     optimizer_args = {

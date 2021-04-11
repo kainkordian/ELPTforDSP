@@ -25,45 +25,107 @@ class MyCNN(MyBaseModel):
         # define fields and their types
         self.input_dim: int
         self.output_dim: int
-        self.dropout: float
-        self.num_conv_kernels: int
-        self.conv_kernel_size: int
+
+        self.num_layers: int
+
+        self.dropout_1: float
+        self.dropout_2: float
+        self.dropout_3: float
+        self.dropout_4: float
+
+        self.num_conv_kernels_1: int
+        self.num_conv_kernels_2: int
+        self.num_conv_kernels_3: int
+        self.num_conv_kernels_4: int
+
+        self.conv_kernel_size_1: int
+        self.conv_kernel_size_2: int
+        self.conv_kernel_size_3: int
+        self.conv_kernel_size_4: int
+
         self.pool_kernel_size: int
+        self.pool_function: str
 
         self.__dict__.update(kwargs)
 
-        self.conv_padding = math.floor(self.conv_kernel_size // 2)
-        self.pool_padding = math.floor(self.pool_kernel_size // 2)
+        def get_pool_layer():
+            pool_class = nn.AvgPool1d if self.pool_function == "avg" else nn.MaxPool1d
+            return pool_class(self.pool_kernel_size, stride=1)
 
-        self.conv = nn.Conv1d(
-            1, self.num_conv_kernels, self.conv_kernel_size, padding=self.conv_padding, stride=1)
+        self.block_1 = nn.Sequential(
+            nn.Conv1d(1,
+                      self.num_conv_kernels_1,
+                      self.conv_kernel_size_1,
+                      padding=int(self.conv_kernel_size_1 / 2)),
+            nn.ReLU(),
+            get_pool_layer(),
+            nn.Dropout(p=self.dropout_1)
+        )
+        self.fc_in_dim: int = self.num_conv_kernels_1 * (
+                self.input_dim - (self.num_layers * (self.pool_kernel_size - 1)))
 
-        self.pool = nn.AvgPool1d(
-            self.pool_kernel_size, padding=self.pool_padding, stride=1)
+        self.block_2 = None
+        if self.num_layers >= 2:
+            self.block_2 = nn.Sequential(
+                nn.Conv1d(self.num_conv_kernels_1,
+                          self.num_conv_kernels_2,
+                          self.conv_kernel_size_2,
+                          padding=int(self.conv_kernel_size_2 / 2)),
+                nn.ReLU(),
+                get_pool_layer(),
+                nn.Dropout(p=self.dropout_2)
+            )
+            self.fc_in_dim: int = self.num_conv_kernels_2 * (
+                        self.input_dim - (self.num_layers * (self.pool_kernel_size - 1)))
+
+        self.block_3 = None
+        if self.num_layers >= 3:
+            self.block_3 = nn.Sequential(
+                nn.Conv1d(self.num_conv_kernels_2,
+                          self.num_conv_kernels_3,
+                          self.conv_kernel_size_3,
+                          padding=int(self.conv_kernel_size_3 / 2)),
+                nn.ReLU(),
+                get_pool_layer(),
+                nn.Dropout(p=self.dropout_3)
+            )
+            self.fc_in_dim: int = self.num_conv_kernels_3 * (
+                    self.input_dim - (self.num_layers * (self.pool_kernel_size - 1)))
+
+        self.block_4 = None
+        if self.num_layers >= 4:
+            self.block_4 = nn.Sequential(
+                nn.Conv1d(self.num_conv_kernels_3,
+                          self.num_conv_kernels_4,
+                          self.conv_kernel_size_4,
+                          padding=int(self.conv_kernel_size_4 / 2)),
+                nn.ReLU(),
+                get_pool_layer(),
+                nn.Dropout(p=self.dropout_4)
+            )
+            self.fc_in_dim: int = self.num_conv_kernels_4 * (
+                    self.input_dim - (self.num_layers * (self.pool_kernel_size - 1)))
 
         self.flatten = nn.Flatten()
-
-        self.fc1 = nn.Linear(self.num_conv_kernels * self.input_dim, self.input_dim)
-        self.fc2 = nn.Linear(self.input_dim, self.output_dim)
+        self.fc = nn.Linear(self.fc_in_dim, self.output_dim)
 
         self.__reset_parameters__()
 
-    ### Just for compatibility ###
-    def forward_eval_single(self, x):
-        return self.forward(x)
-    
     def forward(self, x):
-
         x = x.unsqueeze(1)
-        x = self.conv(x)
-        x = self.pool(x)
-        x = torch.tanh(x)
+        x = self.block_1(x)
+
+        if self.block_2 is not None:
+            x = self.block_2(x)
+
+        if self.block_3 is not None:
+            x = self.block_3(x)
+
+        if self.block_4 is not None:
+            x = self.block_4(x)
 
         x = self.flatten(x)
-
-        x = F.elu(self.fc1(x))
-        x = F.dropout(x, p=self.dropout, training=self.training)
-        return self.fc2(x)
+        return self.fc(x)
 
     # Just for compatibility #
     def forward_eval_single(self, x):
