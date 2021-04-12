@@ -1,0 +1,8 @@
+name: elpt-analysis
+dependencies:
+- numpy
+- pandas
+- matplotlib
+- seaborn
+- jupyterlab
+- nb_conda_kernels
