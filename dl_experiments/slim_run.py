@@ -139,7 +139,8 @@ for dataset_name in dataset_names:
 
         # update specs with best config
         wrapper = BaseWrapper(my_class, my_config, checkpoint, device=args.device)
-
+        
+        ft_duration: float = 0.0
         if args.fine_tuning:
             ft_samples = np.concatenate((train_train, train_val), axis=0)
             logging.info(f"Apply fine-tuning, use {ft_samples.shape} samples...")
@@ -147,7 +148,10 @@ for dataset_name in dataset_names:
                                                             seq_length=wrapper.model_args["input_dim"],
                                                             target_length=wrapper.model_args["output_dim"],
                                                             device=args.device))
+            start_time = time.time()
             wrapper.tune(ft_data)
+            end_time = time.time()
+            ft_duration = end_time - start_time
 
         # also use end of training values, in order to predict first test values
         test = np.concatenate((train_val[-wrapper.model_args["input_dim"]:], test), axis=0)
@@ -205,7 +209,7 @@ for dataset_name in dataset_names:
             })
 
         dict_keys = [f"{args.model}_pred", f"{args.model}_train"]
-        dict_values = [inference_duration, checkpoint["time_taken"]]
+        dict_values = [inference_duration, checkpoint["time_taken"] + ft_duration]
 
         if len(durations_df[(durations_df.dataset == dataset_name) &
                             (durations_df.sampling_rate == dataset_sampling_rate) &
