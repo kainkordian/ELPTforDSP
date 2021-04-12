@@ -8,6 +8,7 @@ import time
 import numpy as np
 import torch
 import pandas as pd
+
 pd.options.mode.chained_assignment = None  # just for now
 from sklearn.preprocessing import MinMaxScaler
 
@@ -51,6 +52,9 @@ parser.add_argument("-vs", "--val-split", type=float, default=0.75,
 parser.add_argument("-mmn", "--min-max-normalization", action="store_true",
                     help="Specify if min-max normalization shall be applied.")
 
+parser.add_argument("-ft", "--fine-tuning", action="store_true",
+                    help="Specify if model should be retrained with optimal arguments on train + validation data.")
+
 parser.add_argument("-cr", "--cpu-resources", type=int, required=True,
                     help="Number of cores per trial.")
 
@@ -92,7 +96,7 @@ for dataset_name in dataset_names:
         # extract sub-arrays
         train = orig_values[:int(len(base_df) * args.test_split)]
         test = orig_values[int(len(base_df) * args.test_split):]
-        
+
         train_train = train[:int(len(train) * args.val_split)]
         train_val = train[int(len(train) * args.val_split):]
 
@@ -113,20 +117,21 @@ for dataset_name in dataset_names:
             "cpu": args.cpu_resources,  # how many cpu cores per trial?
             "gpu": args.gpu_resources  # needs to be "0" on cpu-only devices. You can also specify fractions
         }
-            
+
         checkpoint: dict = None
         if os.path.exists(os.path.join(GeneralConfig.best_checkpoint_dir, f"{job_identifier}_checkpoint.pt")):
             # load checkpoint
-            checkpoint = torch.load(os.path.join(GeneralConfig.best_checkpoint_dir, f"{job_identifier}_checkpoint.pt"))
+            checkpoint = torch.load(os.path.join(GeneralConfig.best_checkpoint_dir, f"{job_identifier}_checkpoint.pt"),
+                                    map_location=args.device)
         else:
             # perform optimization
             optimizer_instance: HyperOptimizer = HyperOptimizer(my_config, job_identifier, args.device)
             checkpoint = optimizer_instance.perform_optimization(optimizer_instance,
-                                                                       train_train,
-                                                                       train_val,
-                                                                       args.model,
-                                                                       dataset_sampling_rate,
-                                                                       resources_per_trial)
+                                                                 train_train,
+                                                                 train_val,
+                                                                 args.model,
+                                                                 dataset_sampling_rate,
+                                                                 resources_per_trial)
 
             # save checkpoint
             create_dirs(GeneralConfig.best_checkpoint_dir)
@@ -134,6 +139,15 @@ for dataset_name in dataset_names:
 
         # update specs with best config
         wrapper = BaseWrapper(my_class, my_config, checkpoint, device=args.device)
+
+        if args.fine_tuning:
+            ft_samples = np.concatenate((train_train, train_val), axis=0)
+            logging.info(f"Apply fine-tuning, use {ft_samples.shape} samples...")
+            ft_data = create_tensor_dataset(*create_dataset(ft_samples,
+                                                            seq_length=wrapper.model_args["input_dim"],
+                                                            target_length=wrapper.model_args["output_dim"],
+                                                            device=args.device))
+            wrapper.tune(ft_data)
 
         # also use end of training values, in order to predict first test values
         test = np.concatenate((train_val[-wrapper.model_args["input_dim"]:], test), axis=0)
@@ -160,7 +174,7 @@ for dataset_name in dataset_names:
                                                   f"{normal_identifier}_results.csv"), index_col=0, parse_dates=True)
         except:
             results_df = test_df.t.to_frame()
-        
+
         results_df[args.model] = 0
         horizon: int = 12 if dataset_sampling_rate == "1h" else (4 if dataset_sampling_rate == "15min" else 1)
         i: int = 0
@@ -189,22 +203,22 @@ for dataset_name in dataset_names:
                 "sampling_rate": [dataset_sampling_rate],
                 "device": [args.device]
             })
-        
+
         dict_keys = [f"{args.model}_pred", f"{args.model}_train"]
         dict_values = [inference_duration, checkpoint["time_taken"]]
-        
-        if len(durations_df[(durations_df.dataset == dataset_name) & 
-                            (durations_df.sampling_rate == dataset_sampling_rate) & 
+
+        if len(durations_df[(durations_df.dataset == dataset_name) &
+                            (durations_df.sampling_rate == dataset_sampling_rate) &
                             (durations_df.device == args.device)]):
-            
+
             durations_df.loc[(durations_df.dataset == dataset_name) &
-                             (durations_df.sampling_rate == dataset_sampling_rate) & 
+                             (durations_df.sampling_rate == dataset_sampling_rate) &
                              (durations_df.device == args.device),
                              dict_keys] = dict_values
         else:
-            new_row = {k:v for k,v in zip(["dataset", "sampling_rate", "device"] + dict_keys, 
-                                          [dataset_name, dataset_sampling_rate, args.device] + dict_values)}
-            #append row to the dataframe
+            new_row = {k: v for k, v in zip(["dataset", "sampling_rate", "device"] + dict_keys,
+                                            [dataset_name, dataset_sampling_rate, args.device] + dict_values)}
+            # append row to the dataframe
             durations_df = durations_df.append(new_row, ignore_index=True)
 
         durations_df = durations_df.sort_values(by=['dataset', 'sampling_rate', 'device'])

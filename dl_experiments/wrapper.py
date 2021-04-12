@@ -1,6 +1,8 @@
+import logging
 from typing import Union, List, Any, Mapping
 
 import torch
+from ignite.engine import create_supervised_trainer
 from torch.utils.data import DataLoader, TensorDataset
 
 from dl_experiments.common import update_flat_dicts
@@ -19,24 +21,62 @@ class BaseWrapper(object):
         self.checkpoint: dict = checkpoint
         self.device: str = device
 
-        self.model_args, _, _ = update_flat_dicts(checkpoint["best_trial_config"],
-                                                  [model_config.model_args,
-                                                   model_config.optimizer_args,
-                                                   model_config.loss_args])
+        self.model_args, self.optimizer_args, self.loss_args = update_flat_dicts(checkpoint["best_trial_config"],
+                                                                                 [model_config.model_args,
+                                                                                  model_config.optimizer_args,
+                                                                                  model_config.loss_args])
 
         self.model_args = {**self.model_args, "device": device}
+        self.instance = None
 
-        self.instance = self.__get_shallow_model_instance__()
-
-    def __get_shallow_model_instance__(self):
+    def __get_shallow_model_instance__(self, load_state: bool = True):
         model_state_dict = self.checkpoint.get("model_state_dict", None)
 
         model = self.model_class(**self.model_args).to(self.device).to(torch.double)
-        if model_state_dict is not None:
+        if load_state and model_state_dict is not None:
             model.load_state_dict(model_state_dict)
         return model
 
+    @staticmethod
+    def __get_last_epoch__(state_dict: dict):
+        epoch: int = -1
+        if "iteration" in state_dict:
+            iteration = state_dict["iteration"]
+            epoch_length = state_dict.get("epoch_length", None)
+            if epoch_length is not None:
+                epoch = iteration // epoch_length
+        elif "epoch" in state_dict:
+            epoch = state_dict["epoch"]
+        return epoch
+
+    def tune(self, data: TensorDataset):
+        self.instance = self.__get_shallow_model_instance__(load_state=False)
+        optimizer = self.model_config.optimizer_class(
+            filter(lambda p: p.requires_grad, self.instance.parameters()), **self.optimizer_args)
+        loss = self.model_config.loss_class(**self.loss_args)
+
+        # create trainer #####
+        trainer = create_supervised_trainer(self.instance,
+                                            optimizer,
+                                            loss_fn=loss,
+                                            device=self.device,
+                                            non_blocking=True
+                                            )
+        # create data loader #####
+        loader = DataLoader(data,
+                            shuffle=True,
+                            batch_size=GeneralConfig.batch_size)
+        # start training
+        max_epochs: int = BaseWrapper.__get_last_epoch__(self.checkpoint.get("trainer_state_dict", {}))
+        if max_epochs == -1:
+            raise ValueError("Found no trainer state-dict or epoch!")
+        logging.info(f"Tune for {max_epochs} epochs...")
+        trainer.run(loader, max_epochs=max_epochs)
+
     def predict(self, data: TensorDataset):
+        if self.instance is None:
+            self.instance = self.__get_shallow_model_instance__(load_state=True)
+
         self.instance.eval()
         # predict
         target_pred = []
