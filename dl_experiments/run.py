@@ -110,23 +110,29 @@ resources_per_trial: dict = {
     "gpu": args.gpu_resources  # needs to be "0" on cpu-only devices. You can also specify fractions
 }
 
-# perform optimization
-optimizer_instance: HyperOptimizer = HyperOptimizer(my_config, job_identifier, args.device)
-checkpoint: dict = optimizer_instance.perform_optimization(optimizer_instance,
-                                                           train_train,
-                                                           train_val,
-                                                           args.model,
-                                                           dataset_sampling_rate,
-                                                           resources_per_trial)
+checkpoint: dict = None
+if os.path.exists(os.path.join(GeneralConfig.best_checkpoint_dir, f"{job_identifier}_checkpoint.pt")):
+    # load checkpoint
+    checkpoint = torch.load(os.path.join(GeneralConfig.best_checkpoint_dir, f"{job_identifier}_checkpoint.pt"))
+else:
+    # perform optimization
+    optimizer_instance: HyperOptimizer = HyperOptimizer(my_config, job_identifier, args.device)
+    checkpoint = optimizer_instance.perform_optimization(optimizer_instance,
+                                                               train_train,
+                                                               train_val,
+                                                               args.model,
+                                                               dataset_sampling_rate,
+                                                               resources_per_trial)
 
-# save checkpoint
-create_dirs(GeneralConfig.best_checkpoint_dir)
-torch.save(checkpoint, os.path.join(GeneralConfig.best_checkpoint_dir, f"{job_identifier}_checkpoint.pt"))
+    # save checkpoint
+    create_dirs(GeneralConfig.best_checkpoint_dir)
+    torch.save(checkpoint, os.path.join(GeneralConfig.best_checkpoint_dir, f"{job_identifier}_checkpoint.pt"))
 
 # update specs with best config
 wrapper = BaseWrapper(my_class, my_config, checkpoint, device=args.device)
+
 # also use end of training values, in order to predict first test values
-test = np.concatenate((train[-wrapper.model_args["input_dim"]:], test), axis=0)
+test = np.concatenate((train_val[-wrapper.model_args["input_dim"]:], test), axis=0)
 logging.info(f"Corrected Test shape: {test.shape}")
 # create test dataset tensor
 test_data = create_tensor_dataset(*create_dataset(test,
