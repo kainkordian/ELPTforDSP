@@ -21,8 +21,8 @@ from dl_experiments.common import create_tensor_dataset, create_dataset, create_
 init_logging("INFO")
 from dl_experiments.optimization import HyperOptimizer
 from dl_experiments.wrapper import BaseWrapper
-from dl_experiments.config import MyGRUConfig, MyCNNConfig, MyCNNGRUConfig, GeneralConfig
-from dl_experiments.model import MyGRU, MyCNN, MyCNNGRU
+from dl_experiments.config import MyGRUConfig, MyCNNConfig, GeneralConfig
+from dl_experiments.model import MyGRU, MyCNN
 
 parser = argparse.ArgumentParser()
 
@@ -37,7 +37,7 @@ parser.add_argument("-dtc", "--dataset-target-column", type=str,
 parser.add_argument("-dd", "--dataset-delimiter", type=str,
                     default=",", help="Dataset delimiter.")
 
-parser.add_argument("-m", "--model", required=True, type=str, choices=["GRU", "CNN", "CNNGRU"],
+parser.add_argument("-m", "--model", required=True, type=str, choices=["GRU", "CNN"],
                     help="Model class to use.")
 
 parser.add_argument("-d", "--device", type=str, required=True,
@@ -71,9 +71,6 @@ if args.model == "GRU":
 elif args.model == "CNN":
     my_class = MyCNN
     my_config = MyCNNConfig
-elif args.model == "CNNGRU":
-    my_class = MyCNNGRU
-    my_config = MyCNNGRUConfig
 
 dataset_names = args.dataset_names
 dataset_sampling_rates = args.dataset_sampling_rates

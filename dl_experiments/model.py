@@ -1,4 +1,3 @@
-import math
 import torch
 from torch.nn import functional as F
 import torch.nn as nn
@@ -132,10 +131,10 @@ class MyCNN(MyBaseModel):
         return self.forward(x)
 
     def __repr__(self):
-        return "MyCNN"
+        return self.__class__.__name__
 
     def __str__(self):
-        return "MyCNN"
+        return self.__class__.__name__
 
 
 class MyGRU(MyBaseModel):
@@ -204,78 +203,7 @@ class MyGRU(MyBaseModel):
         return h0
 
     def __repr__(self):
-        return "MyGRU"
+        return self.__class__.__name__
 
     def __str__(self):
-        return "MyGRU"
-
-
-class MyCNNGRU(MyBaseModel):
-    def __init__(self, *args, **kwargs):
-        super(MyCNNGRU, self).__init__()
-
-        # define fields and their types
-        self.device: str
-
-        self.__dict__.update(kwargs)
-
-        self.h_conv1 = 32
-        self.h_rnn = 16
-
-        # Used to memorize hidden state when doing online sequence predictions
-        self.h_previous = None
-
-        self.conv1 = nn.Conv1d(1, self.h_conv1, kernel_size=10)
-        self.rnn = nn.GRU(
-            input_size=96,
-            hidden_size=self.h_rnn,
-            num_layers=1,
-            batch_first=True)
-        self.linear = nn.Linear(self.h_rnn, 1)
-
-        self.__reset_parameters__()
-
-    def forward(self, x):
-        h_0 = self.__init_hidden__(1, x)
-        x = x.reshape((x.shape[0], 5, 1, 20))
-        batch_size, timesteps, C, L = x.size()
-        c_in = x.view(batch_size * timesteps, C, L)
-
-        c_out = F.relu(F.max_pool1d(self.conv1(c_in), 3))
-        c_out = c_out.view(-1, 96)
-
-        r_in = c_out.view(batch_size, timesteps, -1)
-        r_out, h_n = self.rnn(r_in, h_0)
-        r_out2 = self.linear(r_out[:, -1, :])
-        return r_out2
-
-    def forward_eval_single(self, x_t, reset=False):
-        if reset or self.h_previous is None:
-            h_0 = self.__init_hidden__(1, x_t)
-        else:
-            h_0 = self.h_previous
-
-        x = x_t.reshape((x_t.shape[0], 5, 1, 20))
-        batch_size, timesteps, C, L = x.size()
-        c_in = x.view(batch_size * timesteps, C, L)
-
-        c_out = F.relu(F.max_pool1d(self.conv1(c_in), 3))
-        c_out = c_out.view(-1, 96)
-
-        r_in = c_out.view(batch_size, timesteps, -1)
-        r_out, h_n = self.rnn(r_in, h_0)
-        self.h_previous = h_n
-
-        r_out2 = self.linear(r_out[:, -1, :])
-        return r_out2
-
-    def __init_hidden__(self, num_directions, x):
-        h0 = torch.zeros((num_directions * 1, x.size(0), self.h_rnn), dtype=torch.float64,
-                         device=self.device)
-        return h0
-
-    def __repr__(self):
-        return "MyCNNGRU"
-
-    def __str__(self):
-        return "MyCNNGRU"
+        return self.__class__.__name__

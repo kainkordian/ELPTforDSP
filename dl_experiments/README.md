@@ -6,7 +6,7 @@ Install environment:
   
 Switch to environment:
 
-    source activate kordian-loadprediction
+    source activate ELPTforDSP
   
 Start script, e.g.:
 

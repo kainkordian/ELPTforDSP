@@ -1,4 +1,4 @@
-name: kordian-loadprediction
+name: ELPTforDSP
 dependencies:
 - pip
 - pyzmq

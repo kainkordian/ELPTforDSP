@@ -1,6 +1,6 @@
 import os
 from typing import Any
-from dl_experiments.model import MyCNN, MyGRU, MyCNNGRU
+from dl_experiments.model import MyCNN, MyGRU
 from dl_experiments.losses import *
 
 
@@ -93,28 +93,6 @@ class MyGRUConfig(BaseModelConfig):
         "output_dim": 1,
         "dropout": 0.0,
         "num_layers": 1,
-        "bidirectional": False
-    }
-    optimizer_class = torch.optim.Adam
-    optimizer_args = {
-        "lr": 0.01,
-        "weight_decay": 0.0001
-    }
-    loss_class = SMAPELoss
-    loss_args = {}
-
-
-class MyCNNGRUConfig(BaseModelConfig):
-    model_class = MyCNNGRU
-    model_args = {
-        "input_dim": 100,
-        "hidden_dim": 10,
-        "output_dim": 1,
-        "dropout": 0.0,
-        "num_layers": 0,
-        "num_conv_kernels": 0,
-        "conv_kernel_size": 0,
-        "pool_kernel_size": 0,
         "bidirectional": False
     }
     optimizer_class = torch.optim.Adam

@@ -2,6 +2,7 @@ from typing import Sequence, Union
 
 import torch
 from ignite.exceptions import NotComputableError
+# keep this import
 from ignite.metrics import *
 from ignite.metrics.metric import reinit__is_reduced, sync_all_reduce
 
@@ -32,7 +33,6 @@ class SymmetricMeanAbsolutePercentageError(Metric):
 
         self._sum_of_errors += errors.item()
         self._num_examples += torch.numel(y_pred)
-        #self._num_examples += y.shape[0]
 
     @sync_all_reduce("_sum_of_errors", "_num_examples")
     def compute(self) -> Union[float, torch.Tensor]:

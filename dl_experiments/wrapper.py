@@ -6,14 +6,14 @@ from ignite.engine import create_supervised_trainer
 from torch.utils.data import DataLoader, TensorDataset
 
 from dl_experiments.common import update_flat_dicts
-from dl_experiments.config import MyGRUConfig, MyCNNConfig, MyCNNGRUConfig, BaseModelConfig, GeneralConfig
-from dl_experiments.model import MyCNN, MyGRU, MyCNNGRU
+from dl_experiments.config import MyGRUConfig, MyCNNConfig, BaseModelConfig, GeneralConfig
+from dl_experiments.model import MyCNN, MyGRU
 from dl_experiments.model import MyBaseModel as BaseModel
 
 
 class BaseWrapper(object):
-    def __init__(self, model_class: Union[MyCNN, MyGRU, MyCNNGRU],
-                 model_config: Union[MyCNNConfig, MyGRUConfig, MyCNNGRUConfig],
+    def __init__(self, model_class: Union[MyCNN, MyGRU],
+                 model_config: Union[MyCNNConfig, MyGRUConfig],
                  checkpoint: dict,
                  device: str = "cpu"):
         self.model_class: BaseModel = model_class
